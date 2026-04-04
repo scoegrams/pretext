@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const root = process.cwd()
@@ -12,6 +12,8 @@ const entrypoints = [
   'pages/demos/justification-comparison.html',
   'pages/demos/masonry/index.html',
   'pages/demos/rich-note.html',
+  'pages/demos/studio-viewer.html',
+  'pages/demos/text-studio.html',
   'pages/demos/variable-typographic-ascii.html',
 ]
 
@@ -37,6 +39,8 @@ const targets = [
   { source: 'justification-comparison.html', target: 'justification-comparison/index.html' },
   { source: 'masonry/index.html', target: 'masonry/index.html' },
   { source: 'rich-note.html', target: 'rich-note/index.html' },
+  { source: 'studio-viewer.html', target: 'studio-viewer/index.html' },
+  { source: 'text-studio.html', target: 'text-studio/index.html' },
   { source: 'variable-typographic-ascii.html', target: 'variable-typographic-ascii/index.html' },
 ]
 
@@ -46,6 +50,20 @@ for (let index = 0; index < targets.length; index++) {
 }
 
 await rm(path.join(outdir, 'pages'), { recursive: true, force: true })
+
+const studioDesignsSource = path.join(root, 'pages', 'demos', 'studio-designs')
+const studioDesignsTarget = path.join(outdir, 'studio-designs')
+try {
+  const jsonFiles = (await readdir(studioDesignsSource)).filter(f => f.endsWith('.json'))
+  if (jsonFiles.length > 0) {
+    await mkdir(studioDesignsTarget, { recursive: true })
+    for (const file of jsonFiles) {
+      await copyFile(path.join(studioDesignsSource, file), path.join(studioDesignsTarget, file))
+    }
+  }
+} catch {
+  /* optional folder */
+}
 
 async function resolveBuiltHtmlPath(relativePath: string): Promise<string> {
   const candidates = [

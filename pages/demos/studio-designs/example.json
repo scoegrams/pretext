@@ -1,0 +1,56 @@
+{
+  "studioDesignVersion": 1,
+  "name": "Example frame",
+  "slug": "example",
+  "theme": {
+    "page": "#f5f1ea",
+    "panel": "#fffdf8",
+    "ink": "#201b18",
+    "muted": "#6d645d",
+    "rule": "#d8cec3",
+    "accent": "#955f3b",
+    "pageGradient": "linear-gradient(180deg, #fbf7f0 0%, #f5f1ea 100%)"
+  },
+  "frame": {
+    "maxWidth": 720,
+    "padding": 28,
+    "borderRadius": 20,
+    "borderWidth": 1,
+    "borderColor": "#d8cec3",
+    "shadow": "0 10px 22px rgba(54, 40, 23, 0.14)",
+    "matInset": 8
+  },
+  "typography": {
+    "fontFamily": "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+    "fontSize": 17,
+    "lineHeight": 26
+  },
+  "sampleText": "Pretext, created by Cheng Lou, is a lightweight JavaScript/TypeScript library that focuses on one very specific but historically difficult problem in web development: measuring and laying out text without using the DOM. Traditionally, if you wanted to know how tall a block of text would be or how it would wrap, you had to render it in the DOM and read values like offsetHeight. This triggers layout reflow, which is one of the most expensive operations in the browser and can significantly slow down dynamic interfaces.\n\nPretext eliminates that bottleneck entirely by using the browser’s font engine through Canvas instead of the DOM. It measures text once, caches the results, and then performs all layout calculations using pure arithmetic. This means you can determine line breaks, heights, and layout behavior without ever touching the DOM, resulting in performance that is hundreds of times faster than traditional methods.\n\nThe library is built around a two-phase model: a prepare() step and a layout() step. The prepare() function does the heavier work upfront—breaking text into segments, measuring character widths, and caching that data. After that, layout() becomes extremely fast, allowing you to recompute text layout instantly for different widths or conditions. This separation is what makes Pretext ideal for highly dynamic interfaces where layout needs to update frequently.",
+  "editorial": {
+    "enabled": true,
+    "columnCount": 2,
+    "gutter": 24,
+    "viewportHeight": 400,
+    "columnFills": ["#f4efe6", "#ede8df", "#e6e1d8"],
+    "title": {
+      "enabled": true,
+      "text": "Example studio headline",
+      "x": 0.06,
+      "y": 0.04,
+      "w": 0.55,
+      "fontFamily": "Georgia, \"Times New Roman\", Times, serif",
+      "fontSize": 30,
+      "lineHeight": 36,
+      "color": "#6b2d1a",
+      "backgroundEnabled": true,
+      "backgroundColor": "#f0e6dc",
+      "backgroundPad": 12,
+      "backgroundRadius": 10
+    },
+    "objects": [
+      { "id": "a", "kind": "circle", "x": 0.22, "y": 0.38, "r": 0.1, "fill": "#c4785a" },
+      { "id": "b", "kind": "circle", "x": 0.78, "y": 0.52, "r": 0.09, "fill": "#6b9bac" },
+      { "id": "c", "kind": "circle", "x": 0.5, "y": 0.74, "r": 0.07, "fill": "#8aa657" }
+    ]
+  }
+}

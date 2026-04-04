@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text Studio — Precons</title>
+<link rel="modulepreload" href="../../src/layout.ts">
+<style>
+  * { box-sizing: border-box; }
+  /* Fixed UI chrome: drawer never follows preview theme */
+  :root {
+    color-scheme: light;
+    --ui-page: #f5f1ea;
+    --ui-panel: #fffdf8;
+    --ui-ink: #201b18;
+    --ui-muted: #6d645d;
+    --ui-rule: #d8cec3;
+    --ui-accent: #955f3b;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #e6e2da;
+    color: var(--ui-ink);
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+  .app {
+    display: flex;
+    height: 100vh;
+    min-height: 0;
+  }
+  .drawer-backdrop {
+    display: none;
+  }
+  .drawer {
+    width: min(320px, 100vw);
+    flex-shrink: 0;
+    border-right: 1px solid var(--ui-rule);
+    background: color-mix(in srgb, var(--ui-panel) 96%, white 4%);
+    overflow: auto;
+    padding: 16px 14px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: width 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+  }
+  @media (min-width: 721px) {
+    .drawer.drawer--collapsed {
+      width: 56px;
+      min-width: 56px;
+      padding: 10px 6px 16px;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .drawer.drawer--collapsed .eyebrow,
+    .drawer.drawer--collapsed h1 {
+      display: none;
+    }
+    .drawer.drawer--collapsed .studio-chrome {
+      padding: 0 0 10px;
+      margin-bottom: 8px;
+    }
+    .drawer.drawer--collapsed .studio-chrome-main {
+      display: none;
+    }
+    .drawer.drawer--collapsed .studio-chrome-row {
+      justify-content: center;
+    }
+    .drawer.drawer--collapsed .drawer-collapse-btn {
+      margin-top: 0;
+    }
+    .drawer.drawer--collapsed .studio-stack {
+      gap: 4px;
+    }
+    .drawer.drawer--collapsed .studio-panel-inner {
+      display: none !important;
+    }
+    .drawer.drawer--collapsed details.studio-panel > summary {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      padding: 10px 6px;
+    }
+    .drawer.drawer--collapsed .studio-panel-title {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .drawer.drawer--collapsed .studio-panel-chevron {
+      display: none;
+    }
+    .drawer.drawer--collapsed .studio-panel-icon {
+      width: 26px;
+      height: 26px;
+    }
+    .drawer.drawer--collapsed .studio-panel-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+  .drawer-expand-tab {
+    display: none;
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 44px;
+    margin: 0;
+    padding: 8px 4px;
+    border: none;
+    border-right: 1px solid var(--ui-rule);
+    background: color-mix(in srgb, var(--ui-panel) 96%, white 4%);
+    color: var(--ui-accent);
+    font: 700 11px/1.1 ui-monospace, monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .drawer-expand-tab:hover {
+    background: color-mix(in srgb, var(--ui-accent) 10%, var(--ui-panel));
+  }
+  @media (min-width: 721px) {
+    .drawer-expand-tab:not([hidden]) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  .drawer-toggle {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 20;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--ui-rule);
+    background: var(--ui-panel);
+    color: var(--ui-ink);
+    font: 600 13px/1 inherit;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  }
+  @media (max-width: 720px) {
+    .drawer { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-102%); transition: transform 0.2s ease; box-shadow: 8px 0 32px rgb(0 0 0 / 0.08); }
+    .drawer.open { transform: translateX(0); }
+    .drawer.drawer--collapsed {
+      width: min(320px, 100vw);
+      min-width: unset;
+      padding: 16px 14px 24px;
+      border-right: 1px solid var(--ui-rule);
+      overflow: auto;
+    }
+    .drawer-backdrop { display: none; position: fixed; inset: 0; z-index: 9; background: rgb(0 0 0 / 0.25); }
+    .drawer.open ~ .drawer-backdrop { display: block; }
+    .drawer-toggle { display: block; }
+  }
+  .eyebrow {
+    margin: 0;
+    font: 11px/1.2 ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ui-accent);
+  }
+  h1 {
+    margin: 4px 0 0;
+    font: 700 22px/1.15 Georgia, "Times New Roman", serif;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ui-muted);
+  }
+  .field label.slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .field .slider-val {
+    font: 600 12px/1 ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--ui-accent);
+    flex-shrink: 0;
+  }
+  .field input[type="text"],
+  .field textarea,
+  .field select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--ui-rule);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ui-ink);
+    font: 14px/1.3 inherit;
+  }
+  .field input[type="range"],
+  #edit-controls .field input[type="range"],
+  .edit-obj-sliders input[type="range"] {
+    width: 100%;
+    height: 8px;
+    margin: 4px 0 0;
+    border-radius: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    accent-color: var(--ui-accent);
+    background: transparent;
+    cursor: pointer;
+  }
+  .field input[type="range"]::-webkit-slider-runnable-track,
+  #edit-controls .field input[type="range"]::-webkit-slider-runnable-track,
+  .edit-obj-sliders input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--ui-rule), color-mix(in srgb, var(--ui-accent) 35%, var(--ui-rule) 65%));
+  }
+  .field input[type="range"]::-webkit-slider-thumb,
+  #edit-controls .field input[type="range"]::-webkit-slider-thumb,
+  .edit-obj-sliders input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--ui-panel);
+    border: 2px solid var(--ui-accent);
+    box-shadow: 0 2px 6px rgb(54 40 23 / 0.15);
+  }
+  .field input[type="range"]::-moz-range-thumb,
+  #edit-controls .field input[type="range"]::-moz-range-thumb,
+  .edit-obj-sliders input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--ui-panel);
+    border: 2px solid var(--ui-accent);
+    box-shadow: 0 2px 6px rgb(54 40 23 / 0.15);
+  }
+  .field input[type="range"]::-moz-range-track,
+  #edit-controls .field input[type="range"]::-moz-range-track,
+  .edit-obj-sliders input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--ui-rule), color-mix(in srgb, var(--ui-accent) 35%, var(--ui-rule) 65%));
+  }
+  #title-bg-controls.title-bg-controls--off {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  #title-bg-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .title-bg-wrap {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--ui-rule) 88%, var(--ui-accent) 12%);
+  }
+  .editorial-hint {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ui-muted);
+  }
+  .editorial-hint a {
+    color: var(--ui-accent);
+  }
+  details.studio-subpanel .studio-subpanel-inner--title {
+    gap: 12px;
+  }
+  /* Editorial drawer: slimmer sliders, calmer rhythm */
+  #edit-controls .field input[type="range"] {
+    height: 5px;
+    margin-top: 6px;
+  }
+  #edit-controls .field input[type="range"]::-webkit-slider-runnable-track {
+    height: 5px;
+  }
+  #edit-controls .field input[type="range"]::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    border-width: 1.5px;
+  }
+  #edit-controls .field input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+  }
+  #edit-controls .field input[type="range"]::-moz-range-track {
+    height: 5px;
+  }
+  .field textarea { min-height: 72px; resize: vertical; }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .section-title {
+    margin: 8px 0 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ui-ink);
+    border-bottom: 1px solid var(--ui-rule);
+    padding-bottom: 6px;
+  }
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  button.btn {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--ui-rule);
+    background: color-mix(in srgb, var(--ui-panel) 90%, white 10%);
+    color: var(--ui-ink);
+    font: 600 13px/1 inherit;
+    cursor: pointer;
+  }
+  button.btn:hover {
+    border-color: color-mix(in srgb, var(--ui-accent) 40%, var(--ui-rule) 60%);
+  }
+  button.btn-primary {
+    background: color-mix(in srgb, var(--ui-accent) 18%, var(--ui-panel) 82%);
+    border-color: color-mix(in srgb, var(--ui-accent) 45%, var(--ui-rule) 55%);
+  }
+  .stage-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow: auto;
+  }
+  .stage-hint {
+    margin: 0 0 12px;
+    font-size: 13px;
+    max-width: 56ch;
+  }
+  .canvas-shell {
+    flex: 1;
+    min-height: 280px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  #preview-canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .export-hint {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--ui-muted);
+  }
+  .export-hint code {
+    font-size: 10px;
+  }
+  .edit-obj-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ui-rule);
+    font-size: 11px;
+  }
+  .edit-obj-row-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .edit-obj-row-head span {
+    font-weight: 600;
+    color: var(--ui-muted);
+    min-width: 3.5em;
+  }
+  .edit-obj-row .btn.btn-tiny {
+    padding: 4px 8px;
+    font-size: 11px;
+    margin-left: auto;
+  }
+  .edit-obj-sliders {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+  }
+  .edit-obj-sliders label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ui-muted);
+  }
+  #edit-controls[disabled],
+  #masonry-controls[disabled] {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .masonry-controls-fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+  }
+  /* Masonry sliders: one per row + taller hit box so thumbs don't paint over labels */
+  #masonry-controls > .field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  #masonry-controls > .field-row > .field {
+    gap: 8px;
+    min-width: 0;
+  }
+  #masonry-controls > .field-row .field label.slider-label {
+    line-height: 1.35;
+  }
+  #masonry-controls > .field-row input[type="range"] {
+    width: 100%;
+    height: 28px;
+    margin: 0;
+    padding: 8px 0;
+    box-sizing: border-box;
+  }
+  .masonry-cols-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  .masonry-cols-head .btn {
+    font-size: 10px;
+    padding: 2px 8px;
+    height: auto;
+    flex-shrink: 0;
+  }
+  .masonry-grid-hint {
+    font-weight: 400;
+    color: var(--ui-muted);
+  }
+  .masonry-card-images-field textarea {
+    width: 100%;
+    min-height: 72px;
+    padding: 8px 10px;
+    border: 1px solid var(--ui-rule);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ui-ink);
+    font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .masonry-card-images-field select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--ui-rule);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ui-ink);
+    font: 13px/1.3 inherit;
+    box-sizing: border-box;
+  }
+  #masonry-controls > .masonry-card-images-field input[type='range'] {
+    height: 28px;
+    padding: 8px 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  .masonry-cols-field .slider-label {
+    display: block;
+    margin-bottom: 4px;
+  }
+  .masonry-cols-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .masonry-cols-btn {
+    min-height: 30px;
+    padding: 4px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    border-radius: 6px;
+    border: 1px solid var(--ui-rule);
+    background: color-mix(in srgb, var(--ui-panel) 92%, var(--ui-rule) 8%);
+    color: var(--ui-muted);
+    cursor: pointer;
+  }
+  .masonry-cols-btn:hover {
+    border-color: color-mix(in srgb, var(--ui-accent) 45%, var(--ui-rule));
+    color: var(--ui-ink);
+  }
+  .masonry-cols-btn--active {
+    border-color: var(--ui-accent);
+    background: color-mix(in srgb, var(--ui-accent) 12%, var(--ui-panel));
+    color: var(--ui-accent);
+  }
+  .check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ui-muted);
+    cursor: pointer;
+  }
+  .check-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    accent-color: var(--ui-accent);
+  }
+  #shadow-controls.shadow-controls--disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .field-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ui-muted);
+    margin: 2px 0 0;
+    line-height: 1.35;
+  }
+  .precon-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    margin: 10px 0 2px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ui-rule);
+  }
+  .precon-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--ui-ink);
+    flex-shrink: 0;
+  }
+  .precon-brand .precon-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    color: var(--ui-accent);
+  }
+  .precon-nav-selects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .precon-select {
+    font: 600 11px/1.2 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    min-width: 0;
+    max-width: min(200px, 42vw);
+    padding: 7px 30px 7px 10px;
+    border: 1px solid var(--ui-rule);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ui-panel) 92%, white 8%);
+    color: var(--ui-accent);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236d645d' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+  .precon-select:hover {
+    border-color: color-mix(in srgb, var(--ui-accent) 40%, var(--ui-rule) 60%);
+  }
+  .precon-select:focus {
+    outline: 2px solid color-mix(in srgb, var(--ui-accent) 45%, transparent);
+    outline-offset: 1px;
+  }
+  /* Nav sits on themed stage: keep controls readable on any preview background */
+  .stage-wrap .precon-nav {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--ui-rule) 55%, transparent);
+  }
+  .stage-wrap .precon-brand {
+    text-shadow: 0 0 12px var(--ui-panel), 0 0 8px var(--ui-panel);
+  }
+  .stage-wrap .precon-select {
+    text-shadow: 0 0 10px var(--ui-panel), 0 0 6px var(--ui-panel);
+  }
+  .design-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .design-picker select { width: 100%; }
+  input[type="color"] {
+    width: 100%;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--ui-rule);
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  /* Tool accordion (optional larger header icons via #tool-icon-mode) */
+  .studio-chrome {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 0 14px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--ui-rule);
+  }
+  .studio-chrome-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .studio-chrome-main {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+  }
+  .studio-toolbar-toggle input[type="checkbox"] {
+    accent-color: var(--ui-accent);
+  }
+  .drawer-collapse-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    margin-top: -2px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid var(--ui-rule);
+    background: #fff;
+    color: var(--ui-accent);
+    font: 700 18px/1 Georgia, serif;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .drawer-collapse-btn:hover {
+    border-color: var(--ui-accent);
+    background: color-mix(in srgb, var(--ui-accent) 8%, white);
+  }
+  @media (max-width: 720px) {
+    .drawer-collapse-btn {
+      display: none;
+    }
+  }
+  .studio-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  details.studio-panel {
+    border: 1px solid var(--ui-rule);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--ui-panel) 94%, white 6%);
+    overflow: clip;
+  }
+  details.studio-panel > summary {
+    list-style: none;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ui-ink);
+    user-select: none;
+  }
+  details.studio-panel > summary::-webkit-details-marker {
+    display: none;
+  }
+  details.studio-panel > summary:hover {
+    background: color-mix(in srgb, var(--ui-accent) 6%, transparent);
+  }
+  .studio-panel-icon {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    color: var(--ui-accent);
+  }
+  .studio-panel-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .studio-panel-title {
+    min-width: 0;
+    text-align: left;
+  }
+  .studio-panel-chevron {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: var(--ui-muted);
+    transition: transform 0.18s ease;
+  }
+  .studio-panel-chevron::before {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid currentColor;
+  }
+  details.studio-panel:not([open]) > summary .studio-panel-chevron {
+    transform: rotate(-90deg);
+  }
+  .studio-panel-inner {
+    padding: 0 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .studio-panel-inner > .section-title {
+    margin: 4px 0 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ui-muted);
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  details.studio-subpanel {
+    border: 1px dashed color-mix(in srgb, var(--ui-rule) 85%, var(--ui-accent) 15%);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ui-panel) 88%, white 12%);
+  }
+  details.studio-subpanel > summary {
+    list-style: none;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ui-muted);
+    cursor: pointer;
+  }
+  details.studio-subpanel > summary::-webkit-details-marker {
+    display: none;
+  }
+  details.studio-subpanel .studio-subpanel-inner {
+    padding: 0 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #edit-controls {
+    border: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color-scheme: light;
+    min-width: 0;
+  }
+  .drawer--tool-icons details.studio-panel > summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .drawer--tool-icons .studio-panel-icon {
+    grid-column: 1;
+    width: 28px;
+    height: 28px;
+  }
+  .drawer--tool-icons .studio-panel-icon svg {
+    width: 26px;
+    height: 26px;
+  }
+  .drawer--tool-icons .studio-panel-chevron {
+    grid-column: 3;
+    justify-self: end;
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="drawer" id="drawer" aria-label="Studio controls">
+      <p class="eyebrow">Precons</p>
+      <h1>Text Studio</h1>
+
+      <div class="studio-chrome">
+        <div class="studio-chrome-row">
+          <button
+            type="button"
+            id="drawer-collapse"
+            class="drawer-collapse-btn"
+            aria-expanded="true"
+            aria-controls="drawer"
+            title="Shrink to icon rail — more room for preview"
+          >
+            ‹
+          </button>
+          <div class="studio-chrome-main">
+            <label class="check-label studio-toolbar-toggle" for="tool-icon-mode">
+              <input type="checkbox" id="tool-icon-mode" />
+              Precons or not
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="studio-stack">
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Designs — saved designs and URL slug">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2h8v14H4z"/><path d="M4 11h16"/></svg></span>
+            <span class="studio-panel-title">Designs</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="design-picker">
+              <select id="design-select" aria-label="Saved design"></select>
+              <div class="field-row">
+                <button type="button" class="btn" id="btn-new">New</button>
+                <button type="button" class="btn btn-primary" id="btn-save">Save</button>
+              </div>
+              <div class="field">
+                <label for="design-name">Name</label>
+                <input type="text" id="design-name" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label for="design-slug">Slug (URL id)</label>
+                <input type="text" id="design-slug" autocomplete="off" spellcheck="false" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Theme — colors and page background">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="7.5" cy="14" r="3.5"/><circle cx="12" cy="9" r="3.5"/><circle cx="16.5" cy="14" r="3.5"/></svg></span>
+            <span class="studio-panel-title">Theme</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field-row">
+              <div class="field"><label for="c-page">Page</label><input type="color" id="c-page" /></div>
+              <div class="field"><label for="c-panel">Panel</label><input type="color" id="c-panel" /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label for="c-ink">Ink</label><input type="color" id="c-ink" /></div>
+              <div class="field"><label for="c-muted">Muted</label><input type="color" id="c-muted" /></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label for="c-rule">Rule</label><input type="color" id="c-rule" /></div>
+              <div class="field"><label for="c-accent">Accent</label><input type="color" id="c-accent" /></div>
+            </div>
+            <div class="field">
+              <label for="page-bg-preset">Page background</label>
+              <select id="page-bg-preset" aria-label="Page background preset"></select>
+              <p class="field-hint">Solid uses the page color above; other options add a gradient behind the preview.</p>
+            </div>
+            <div class="field" id="page-gradient-custom-wrap" hidden>
+              <label for="page-gradient-custom">Custom gradient (CSS)</label>
+              <textarea id="page-gradient-custom" rows="2" placeholder="linear-gradient(180deg, #fff 0%, #eee 100%)"></textarea>
+            </div>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Frame — size, padding, border, shadow">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/></svg></span>
+            <span class="studio-panel-title">Frame</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field">
+              <label class="slider-label" for="f-maxw">Max width <span class="slider-val" id="f-maxw-val">420</span>px</label>
+              <input type="range" id="f-maxw" min="120" max="960" step="10" />
+            </div>
+            <div class="field">
+              <label class="slider-label" for="f-pad">Inner padding <span class="slider-val" id="f-pad-val">28</span>px</label>
+              <input type="range" id="f-pad" min="0" max="80" step="2" />
+              <p class="field-hint" style="margin:4px 0 0;font-size:11px;color:var(--ui-muted);">
+                Space from the card border inward. With <strong>columns on</strong>, this mainly sizes the column tint bands; mat below insets the text inside them.
+              </p>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="slider-label" for="f-radius">Radius <span class="slider-val" id="f-radius-val">20</span>px</label>
+                <input type="range" id="f-radius" min="0" max="48" step="2" />
+              </div>
+              <div class="field">
+                <label class="slider-label" for="f-border">Border <span class="slider-val" id="f-border-val">1</span> px</label>
+                <input type="range" id="f-border" min="0" max="8" step="1" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="f-borderc">Border color</label>
+              <input type="color" id="f-borderc" />
+            </div>
+            <div class="field">
+              <label class="check-label" for="shadow-enabled">
+                <input type="checkbox" id="shadow-enabled" checked />
+                Drop shadow
+              </label>
+            </div>
+            <div id="shadow-controls">
+              <div class="field">
+                <label for="shadow-color">Shadow color</label>
+                <input type="color" id="shadow-color" />
+              </div>
+              <div class="field">
+                <label class="slider-label" for="shadow-blur">Blur <span class="slider-val" id="shadow-blur-val">22</span>px</label>
+                <input type="range" id="shadow-blur" min="0" max="60" step="1" />
+              </div>
+              <div class="field">
+                <label class="slider-label" for="shadow-offset">Offset down <span class="slider-val" id="shadow-offset-val">10</span>px</label>
+                <input type="range" id="shadow-offset" min="0" max="32" step="1" />
+              </div>
+              <div class="field">
+                <label class="slider-label" for="shadow-opacity">Strength <span class="slider-val" id="shadow-opacity-val">14</span>%</label>
+                <input type="range" id="shadow-opacity" min="0" max="100" step="1" />
+              </div>
+            </div>
+            <div class="field">
+              <label class="slider-label" for="f-mat">Mat inset <span class="slider-val" id="f-mat-val">8</span>px</label>
+              <input type="range" id="f-mat" min="0" max="48" step="2" />
+              <p class="field-hint" style="margin:4px 0 0;font-size:11px;color:var(--ui-muted);">
+                Extra inset for <strong>text</strong> (print mat). Plain preview: text starts at padding + mat (<span id="f-inset-sum" class="slider-val" style="display:inline;">36</span>px from the card).
+                Editorial: tints reach to the padding inset; text still starts at padding + mat.
+              </p>
+            </div>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Typography — body font and size">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 4h8v2.5h-2.5v13H10.5v-13H8V4z"/></svg></span>
+            <span class="studio-panel-title">Typography</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field">
+              <label for="ty-font-select">Font</label>
+              <select id="ty-font-select" aria-label="Font preset"></select>
+            </div>
+            <div class="field" id="ty-font-custom-wrap" hidden>
+              <label for="ty-font-custom">Custom font stack (CSS)</label>
+              <input type="text" id="ty-font-custom" spellcheck="false" placeholder='"Your Font", sans-serif' />
+              <p class="field-hint">For fonts not in the list. Use a full CSS <code>font-family</code> value.</p>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="slider-label" for="ty-size">Size <span class="slider-val" id="ty-size-val">17</span>px</label>
+                <input type="range" id="ty-size" min="10" max="36" step="1" />
+              </div>
+              <div class="field">
+                <label class="slider-label" for="ty-lh">Line height <span class="slider-val" id="ty-lh-val">26</span>px</label>
+                <input type="range" id="ty-lh" min="14" max="52" step="1" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Editorial — columns, title, wrap objects">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h4v16H5V4zm5 0h4v16h-4V4zm5 0h4v16h-4V4z"/></svg></span>
+            <span class="studio-panel-title">Editorial</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field">
+              <label class="check-label" for="edit-enabled">
+                <input type="checkbox" id="edit-enabled" />
+                Columns + wrap objects
+              </label>
+              <p class="field-hint editorial-hint">
+                Multi-column text with wrap obstacles. <a href="/demos/editorial-engine">Editorial engine</a> demo. Padding tints the columns; mat inset pulls text inward.
+              </p>
+            </div>
+            <fieldset id="edit-controls">
+              <div class="field">
+                <label class="slider-label" for="edit-box-w">Box width <span class="slider-val" id="edit-box-w-val">420</span>px</label>
+                <input type="range" id="edit-box-w" min="120" max="960" step="10" aria-label="Editorial frame width" />
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="edit-cols">Columns</label>
+                  <select id="edit-cols" aria-label="Column count">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="slider-label" for="edit-gutter">Gutter <span class="slider-val" id="edit-gutter-val">24</span>px</label>
+                  <input type="range" id="edit-gutter" min="0" max="56" step="2" />
+                </div>
+              </div>
+              <div class="field">
+                <label class="slider-label" for="edit-vh">Content height <span class="slider-val" id="edit-vh-val">400</span>px</label>
+                <input type="range" id="edit-vh" min="160" max="640" step="8" />
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="edit-col0">Column 1 wash</label>
+                  <input type="color" id="edit-col0" />
+                </div>
+                <div class="field">
+                  <label for="edit-col1">Column 2 wash</label>
+                  <input type="color" id="edit-col1" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="edit-col2">Column 3 wash</label>
+                <input type="color" id="edit-col2" />
+              </div>
+
+              <details class="studio-subpanel">
+                <summary title="Headline wraps the body as an obstacle">Title</summary>
+                <div class="studio-subpanel-inner studio-subpanel-inner--title">
+                  <div class="field">
+                    <label class="check-label" for="title-enabled">
+                      <input type="checkbox" id="title-enabled" />
+                      Show headline (wrap obstacle)
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label for="title-text">Text</label>
+                    <input type="text" id="title-text" spellcheck="true" placeholder="Headline" aria-label="Title text" />
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="title-color">Color</label>
+                      <input type="color" id="title-color" aria-label="Title color" />
+                    </div>
+                    <div class="field">
+                      <label for="title-font-select">Font</label>
+                      <select id="title-font-select" aria-label="Title font preset"></select>
+                    </div>
+                  </div>
+                  <div class="field" id="title-font-custom-wrap" hidden>
+                    <label for="title-font-custom">Custom font (CSS)</label>
+                    <input type="text" id="title-font-custom" spellcheck="false" placeholder='"Your Font", serif' aria-label="Title custom font CSS" />
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label class="slider-label" for="title-size">Size <span class="slider-val" id="title-size-val">28</span>px</label>
+                      <input type="range" id="title-size" min="14" max="56" step="1" aria-label="Title font size" />
+                    </div>
+                    <div class="field">
+                      <label class="slider-label" for="title-lh">Line height <span class="slider-val" id="title-lh-val">34</span>px</label>
+                      <input type="range" id="title-lh" min="16" max="64" step="1" aria-label="Title line height" />
+                    </div>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label class="slider-label" for="title-x">X <span class="slider-val" id="title-x-val">8</span>%</label>
+                      <input type="range" id="title-x" min="0" max="100" step="1" aria-label="Title horizontal position" />
+                    </div>
+                    <div class="field">
+                      <label class="slider-label" for="title-y">Y <span class="slider-val" id="title-y-val">5</span>%</label>
+                      <input type="range" id="title-y" min="0" max="100" step="1" aria-label="Title vertical position" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label class="slider-label" for="title-w">Max width <span class="slider-val" id="title-w-val">84</span>%</label>
+                    <input type="range" id="title-w" min="20" max="100" step="1" aria-label="Title max width" />
+                  </div>
+                  <div id="title-bg-wrap" class="title-bg-wrap" hidden>
+                    <div class="field">
+                      <label class="check-label" for="title-bg-enabled">
+                        <input type="checkbox" id="title-bg-enabled" />
+                        Background behind text
+                      </label>
+                    </div>
+                    <div id="title-bg-controls">
+                      <div class="field">
+                        <label for="title-bg-color">Fill</label>
+                        <input type="color" id="title-bg-color" aria-label="Title background fill" />
+                      </div>
+                      <div class="field-row">
+                        <div class="field">
+                          <label class="slider-label" for="title-bg-pad">Pad <span class="slider-val" id="title-bg-pad-val">10</span>px</label>
+                          <input type="range" id="title-bg-pad" min="0" max="24" step="1" aria-label="Title background padding" />
+                        </div>
+                        <div class="field">
+                          <label class="slider-label" for="title-bg-radius">Radius <span class="slider-val" id="title-bg-radius-val">8</span>px</label>
+                          <input type="range" id="title-bg-radius" min="0" max="24" step="1" aria-label="Title background corner radius" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <details class="studio-subpanel">
+                <summary>Layout objects</summary>
+                <div class="studio-subpanel-inner">
+                  <div class="btn-row">
+                    <button type="button" class="btn" id="btn-edit-circle">+ Circle</button>
+                    <button type="button" class="btn" id="btn-edit-rect">+ Rectangle</button>
+                    <button type="button" class="btn" id="btn-edit-sample">Sample orbs</button>
+                  </div>
+                  <div id="edit-objects" aria-label="Layout objects"></div>
+                </div>
+              </details>
+            </fieldset>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Masonry — card grid preview">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="6" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/><rect x="14" y="13" width="7" height="8" rx="1"/></svg></span>
+            <span class="studio-panel-title">Masonry</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field">
+              <label class="check-label" for="masonry-enabled">
+                <input type="checkbox" id="masonry-enabled" />
+                Card grid preview
+              </label>
+              <p class="field-hint">Blank lines in <strong>Sample text</strong> separate cards. Pretext measures height without DOM reflow. Exclusive with Editorial above.</p>
+            </div>
+            <fieldset id="masonry-controls" class="masonry-controls-fieldset" disabled>
+              <div class="field masonry-cols-field">
+                <div class="masonry-cols-head">
+                  <span class="slider-label">Columns</span>
+                  <button type="button" class="btn" id="btn-masonry-full-width">Full width</button>
+                </div>
+                <div id="masonry-cols-grid" class="masonry-cols-grid" role="group" aria-label="Column count">
+                  <button type="button" class="masonry-cols-btn" data-cols="2" aria-pressed="false">2</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="3" aria-pressed="false">3</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="4" aria-pressed="false">4</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="5" aria-pressed="false">5</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="6" aria-pressed="false">6</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="8" aria-pressed="false">8</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="10" aria-pressed="false">10</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="12" aria-pressed="false">12</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="16" aria-pressed="false">16</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="20" aria-pressed="false">20</button>
+                  <button type="button" class="masonry-cols-btn" data-cols="24" aria-pressed="false">24</button>
+                </div>
+              </div>
+              <div class="field masonry-cols-field">
+                <span class="slider-label">Rows <span id="masonry-grid-hint" class="masonry-grid-hint"></span></span>
+                <div id="masonry-rows-grid" class="masonry-cols-grid" role="group" aria-label="Row count">
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn masonry-cols-btn--active" data-rows="1" aria-pressed="true">1</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="2" aria-pressed="false">2</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="3" aria-pressed="false">3</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="4" aria-pressed="false">4</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="5" aria-pressed="false">5</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="6" aria-pressed="false">6</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="8" aria-pressed="false">8</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="10" aria-pressed="false">10</button>
+                  <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="12" aria-pressed="false">12</button>
+                </div>
+                <p class="field-hint">Cards = cols × rows. Uses your Sample text paragraphs, cycling if needed.</p>
+              </div>
+              <div class="field masonry-card-images-field">
+                <label class="slider-label" for="masonry-card-image-mode">Card images</label>
+                <select id="masonry-card-image-mode" aria-label="How images sit inside each card">
+                  <option value="none">Off</option>
+                  <option value="top">Photo on top (full width)</option>
+                  <option value="left">Thumbnail left</option>
+                  <option value="right">Thumbnail right</option>
+                </select>
+                <label class="slider-label" for="masonry-card-image-urls">Image URLs (one per line)</label>
+                <textarea
+                  id="masonry-card-image-urls"
+                  rows="4"
+                  placeholder="Line 1 → first card&#10;Line 2 → second card&#10;https://… or data:image/…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="One image URL per masonry card line"
+                ></textarea>
+                <label class="slider-label" for="masonry-card-image-size"
+                  >Image size <span class="slider-val" id="masonry-card-image-size-val">120</span>px</label
+                >
+                <input
+                  type="range"
+                  id="masonry-card-image-size"
+                  min="48"
+                  max="280"
+                  step="4"
+                  aria-label="Max image height or thumbnail width"
+                />
+                <p class="field-hint">
+                  Line <em>i</em> pairs with card <em>i</em> (same order as your sample paragraphs / tiling). Fewer lines than cards = no image on extra cards. Same-origin, CORS-enabled hosts, or data URIs draw on canvas.
+                </p>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="slider-label" for="masonry-gap">Gap <span class="slider-val" id="masonry-gap-val">12</span>px</label>
+                  <input type="range" id="masonry-gap" min="4" max="48" step="1" aria-label="Gap between cards" />
+                </div>
+                <div class="field">
+                  <label class="slider-label" for="masonry-card-pad">Card padding <span class="slider-val" id="masonry-card-pad-val">16</span>px</label>
+                  <input type="range" id="masonry-card-pad" min="4" max="48" step="1" aria-label="Padding inside each card" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="slider-label" for="masonry-max-col">Max col width <span class="slider-val" id="masonry-max-col-val">400</span>px</label>
+                  <input type="range" id="masonry-max-col" min="120" max="800" step="10" aria-label="Max width of one column" />
+                </div>
+                <div class="field">
+                  <label class="slider-label" for="masonry-max-chars">Truncate <span class="slider-val" id="masonry-max-chars-val">Off</span></label>
+                  <input type="range" id="masonry-max-chars" min="0" max="2000" step="10" aria-label="Max characters per card; 0 is unlimited" />
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Content — sample paragraph">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 7h14M5 12h14M5 17h10"/></svg></span>
+            <span class="studio-panel-title">Content</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="field">
+              <label for="sample-text">Sample text</label>
+              <textarea id="sample-text"></textarea>
+            </div>
+          </div>
+        </details>
+
+        <details class="studio-panel">
+          <summary class="studio-panel-head" aria-label="Export — JSON and CLI">
+            <span class="studio-panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 21h16"/></svg></span>
+            <span class="studio-panel-title">Export</span>
+            <span class="studio-panel-chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="studio-panel-inner">
+            <div class="btn-row">
+              <button type="button" class="btn" id="btn-download-json">Download JSON</button>
+              <button type="button" class="btn" id="btn-copy-cli">Copy export CLI</button>
+            </div>
+            <p class="export-hint">
+              Run <code>bun run studio-export</code> with the downloaded file to register the design for the static viewer. See DEVELOPMENT.md.
+            </p>
+          </div>
+        </details>
+      </div>
+    </aside>
+    <button
+      type="button"
+      id="drawer-expand-tab"
+      class="drawer-expand-tab"
+      hidden
+      aria-controls="drawer"
+      title="Show tools panel"
+    >
+      Tools
+    </button>
+    <div class="drawer-backdrop" id="drawer-backdrop" aria-hidden="true"></div>
+    <main class="stage-wrap" id="stage-wrap">
+      <button type="button" class="drawer-toggle" id="drawer-toggle">Controls</button>
+      <nav class="precon-nav" id="precon-nav" aria-label="Precon navigation">
+        <div class="precon-brand">
+          <svg class="precon-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.75" />
+            <path d="M7 10h10M7 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span>Precon</span>
+        </div>
+        <div class="precon-nav-selects">
+          <select id="precon-nav-demos" class="precon-select" aria-label="Demos" autocomplete="off">
+            <option value="" disabled>DEMOS</option>
+            <optgroup label="DEMOS">
+              <option value="/demos">Index</option>
+              <option value="/demos/accordion">Accordion</option>
+              <option value="/demos/bubbles">Bubbles</option>
+              <option value="/demos/dynamic-layout">Dynamic layout</option>
+              <option value="/demos/variable-typographic-ascii">Typographic ASCII</option>
+              <option value="/demos/editorial-engine">Editorial engine</option>
+              <option value="/demos/justification-comparison">Justification</option>
+              <option value="/demos/rich-note">Rich note</option>
+              <option value="/demos/masonry">Masonry</option>
+              <option value="/demos/text-studio">Text Studio</option>
+              <option value="/demos/studio-viewer?design=example">Studio viewer</option>
+            </optgroup>
+          </select>
+          <select id="precon-nav-lab" class="precon-select" aria-label="Lab" autocomplete="off">
+            <option value="" disabled>LAB</option>
+            <optgroup label="LAB">
+              <option value="/accuracy">Accuracy</option>
+              <option value="/benchmark">Benchmark</option>
+              <option value="/corpus">Corpus</option>
+            </optgroup>
+          </select>
+        </div>
+      </nav>
+      <p class="stage-hint" id="stage-hint">Precons preview uses Pretext <code>prepareWithSegments</code> + <code>layoutWithLines</code> and draws to canvas. Tweak the drawer, then save or export.</p>
+      <div class="canvas-shell">
+        <canvas id="preview-canvas" width="800" height="600" aria-label="Text preview"></canvas>
+      </div>
+    </main>
+  </div>
+  <script>
+    (function () {
+      function normPath() {
+        var p = location.pathname
+        if (p.endsWith('/index.html')) p = p.slice(0, -'/index.html'.length)
+        if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1)
+        return p || '/'
+      }
+      function syncPreconNav() {
+        var demos = document.getElementById('precon-nav-demos')
+        var lab = document.getElementById('precon-nav-lab')
+        if (!demos || !lab) return
+        var path = normPath()
+        var full = path + location.search
+        function pick(sel) {
+          var best = 0
+          for (var i = 0; i < sel.options.length; i++) {
+            var o = sel.options[i]
+            if (!o.value) continue
+            var vp = o.value.split('?')[0]
+            if (o.value === full || o.value === path || path === vp) {
+              best = i
+              break
+            }
+          }
+          sel.selectedIndex = best
+        }
+        pick(demos)
+        pick(lab)
+        demos.addEventListener('change', function () {
+          if (demos.value) location.href = demos.value
+        })
+        lab.addEventListener('change', function () {
+          if (lab.value) location.href = lab.value
+        })
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncPreconNav)
+      else syncPreconNav()
+    })()
+  </script>
+  <script type="module" src="./text-studio.ts"></script>
+</body>
+</html>

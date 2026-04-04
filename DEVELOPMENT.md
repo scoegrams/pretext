@@ -29,6 +29,7 @@ bun run corpus-status:refresh
 bun run status-dashboard     # rebuild status/dashboard.json from checked-in JSON snapshots
 bun run gatsby-check         # compatibility alias for corpus-check --id=en-gatsby-opening --diagnose
 bun run gatsby-sweep         # compatibility alias for corpus-sweep --id=en-gatsby-opening
+bun run studio-export        # install a Text Studio JSON into pages/demos/studio-designs/ for the static viewer
 ```
 
 Packaging notes:
@@ -36,8 +37,18 @@ Packaging notes:
 - Keep library-internal imports using `.js` specifiers inside `.ts` source so plain `tsc -p tsconfig.build.json` emits correct runtime JS and declarations.
 - `bun run package-smoke-test` is the quickest published-artifact confidence check before a release or packaging change.
 
+### Text Studio (themes / static export)
+
+- **Overview (what the studio is, schema, export, how it relates to demos like Masonry):** `pages/demos/TEXT-STUDIO.md`
+- **Editor:** `/demos/text-studio` — tweak theme, frame, and type; live Pretext canvas preview; drafts live in IndexedDB; **Download JSON** for a portable design file.
+- **Register a design for the viewer:** from the repo root, run `bun run studio-export -- ./your-design.studio.json`. That writes `pages/demos/studio-designs/<slug>.json` (slug comes from the JSON).
+- **Viewer (dev):** `/demos/studio-viewer?design=<slug>` loads `studio-designs/<slug>.json` next to the viewer (e.g. `design=example` for the checked-in sample).
+- **GitHub Pages:** `bun run site:build` emits `site/studio-viewer/index.html` and copies every `pages/demos/studio-designs/*.json` into `site/studio-designs/`. On the static site, open `./studio-viewer/?design=<slug>` (relative to the published site root).
+
 Useful pages:
 - `/demos/index`
+- `/demos/text-studio`
+- `/demos/studio-viewer?design=example`
 - `/demos/accordion`
 - `/demos/bubbles`
 - `/demos/dynamic-layout`
