@@ -4,12 +4,48 @@ import {
   pretexFontString,
   type StudioDesignV1,
   type StudioMasonryCardImageModeV1,
+  type StudioMasonryCardSplitV1,
 } from './text-studio.schema.ts'
 
-/** Blank-line-separated paragraphs → one card each (same idea as `pages/demos/masonry`). */
-export function splitSampleIntoMasonryCards(sampleText: string): string[] {
+function splitSampleTextIntoSentences(text: string): string[] {
+  const t = text.trim()
+  if (!t) return [' ']
+  try {
+    const Seg = (Intl as unknown as { Segmenter?: typeof Intl.Segmenter }).Segmenter
+    if (typeof Seg === 'function') {
+      const seg = new Seg(undefined, { granularity: 'sentence' })
+      const out: string[] = []
+      for (const { segment } of seg.segment(text)) {
+        const s = segment.trim()
+        if (s.length > 0) out.push(s)
+      }
+      if (out.length > 0) return out
+    }
+  } catch {
+    /* fall through */
+  }
+  const rough = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0)
+  return rough.length > 0 ? rough : [t]
+}
+
+/**
+ * Splits sample copy into one masonry card per unit (paragraph, line, or sentence).
+ * Order is always reading order through `sampleText`; use rows × columns to tile the sequence.
+ */
+export function splitSampleIntoMasonryCards(
+  sampleText: string,
+  split: StudioMasonryCardSplitV1 = 'paragraphs',
+): string[] {
+  const fallback = sampleText.trim() || ' '
+  if (split === 'lines') {
+    const parts = sampleText.split(/\n/).map(s => s.trim()).filter(s => s.length > 0)
+    return parts.length > 0 ? parts : [fallback]
+  }
+  if (split === 'sentences') {
+    return splitSampleTextIntoSentences(sampleText)
+  }
   const parts = sampleText.split(/\n\n+/).map(s => s.trim()).filter(s => s.length > 0)
-  return parts.length > 0 ? parts : [sampleText.trim() || ' ']
+  return parts.length > 0 ? parts : [fallback]
 }
 
 /** When `maxChars` > 0, truncate to UTF-16 length and append an ellipsis. */
@@ -128,6 +164,12 @@ export type CardDrawSpec = {
   textW: number
 }
 
+/** When the bitmap is not decoded yet, assume ~4:3 so masonry height does not jump after load. */
+const CARD_IMAGE_PLACEHOLDER_AR = 3 / 4
+const CARD_IMAGE_TEXT_GAP = 8
+const CARD_IMAGE_SIDE_MIN_H = 56
+const CARD_IMAGE_SIDE_MAX_H = 240
+
 function buildCardDrawSpec(
   prepared: PreparedText,
   colWidth: number,
@@ -139,9 +181,8 @@ function buildCardDrawSpec(
 ): CardDrawSpec {
   const innerW = Math.max(40, colWidth - cardPadding * 2)
   const u = url.trim()
-  const imgEl = mode !== 'none' && u ? getCachedMasonryImage(u) : null
 
-  if (mode === 'none' || !u || !imgEl || imgEl.naturalWidth <= 0) {
+  if (mode === 'none' || !u) {
     const textH = layout(prepared, innerW, lh).height
     return {
       outerH: textH + cardPadding * 2,
@@ -153,59 +194,48 @@ function buildCardDrawSpec(
     }
   }
 
-  const nw = imgEl.naturalWidth
-  const nh = imgEl.naturalHeight
-  const ar = nh / nw
-  const textGap = 8
+  const imgEl = getCachedMasonryImage(u)
+  const nw = imgEl?.naturalWidth ?? 0
+  const nh = imgEl?.naturalHeight ?? 0
+  const ar = nw > 0 && nh > 0 ? nh / nw : CARD_IMAGE_PLACEHOLDER_AR
+  const g = CARD_IMAGE_TEXT_GAP
 
   if (mode === 'top') {
-    const maxImgH = clamp(sizePx, 48, 280)
-    let ih = Math.min(maxImgH, innerW * ar)
-    if (ih < 28) ih = Math.min(28, innerW * ar)
+    const bandH = clamp(sizePx, 56, 280)
     const iw = innerW
+    const ih = bandH
     const textW = innerW
     const textH = layout(prepared, textW, lh).height
-    const innerH = ih + textGap + textH
+    const innerH = ih + g + textH
     return {
       outerH: innerH + cardPadding * 2,
       innerW,
       image: { x: 0, y: 0, w: iw, h: ih },
       textX: 0,
-      textY: ih + textGap,
+      textY: ih + g,
       textW,
     }
   }
 
   if (mode === 'left') {
-    let thumbW = clamp(sizePx, 56, Math.floor(innerW * 0.52))
-    let ih = thumbW * ar
-    const maxThumbH = 220
-    if (ih > maxThumbH) {
-      ih = maxThumbH
-      thumbW = ih / ar
-    }
-    const textW = Math.max(40, innerW - thumbW - textGap)
+    const thumbW = clamp(sizePx, 56, Math.floor(innerW * 0.48))
+    const ih = clamp(thumbW * ar, CARD_IMAGE_SIDE_MIN_H, CARD_IMAGE_SIDE_MAX_H)
+    const textW = Math.max(40, innerW - thumbW - g)
     const textH = layout(prepared, textW, lh).height
     const innerH = Math.max(ih, textH)
     return {
       outerH: innerH + cardPadding * 2,
       innerW,
       image: { x: 0, y: 0, w: thumbW, h: ih },
-      textX: thumbW + textGap,
+      textX: thumbW + g,
       textY: 0,
       textW,
     }
   }
 
-  // right
-  let thumbW = clamp(sizePx, 56, Math.floor(innerW * 0.52))
-  let ih = thumbW * ar
-  const maxThumbH = 220
-  if (ih > maxThumbH) {
-    ih = maxThumbH
-    thumbW = ih / ar
-  }
-  const textW = Math.max(40, innerW - thumbW - textGap)
+  const thumbW = clamp(sizePx, 56, Math.floor(innerW * 0.48))
+  const ih = clamp(thumbW * ar, CARD_IMAGE_SIDE_MIN_H, CARD_IMAGE_SIDE_MAX_H)
+  const textW = Math.max(40, innerW - thumbW - g)
   const textH = layout(prepared, textW, lh).height
   const innerH = Math.max(ih, textH)
   return {
@@ -339,7 +369,7 @@ function drawImageCover(
 
 function buildPreparedCards(d: StudioDesignV1, font: string): { cardsText: string[]; prepared: PreparedText[] } | null {
   const m = d.masonry
-  const rawCards = splitSampleIntoMasonryCards(d.sampleText)
+  const rawCards = splitSampleIntoMasonryCards(d.sampleText, m.cardSplit)
   const baseCards = rawCards.map(t => truncateMasonryBlockText(t, m.maxCharsPerBlock))
 
   let tileTarget = 0
@@ -451,10 +481,20 @@ export function renderMasonryStudioDesign(canvas: HTMLCanvasElement, d: StudioDe
     const cardUrl = (urlLines[idx] ?? '').trim()
 
     if (spec.image && m.cardImageMode !== 'none' && cardUrl) {
+      const { x: ix, y: iy, w: iw, h: ih } = spec.image
+      const px = originX + ix
+      const py = originY + iy
       const im = getCachedMasonryImage(cardUrl)
       if (im) {
-        const { x: ix, y: iy, w: iw, h: ih } = spec.image
-        drawImageCover(ctx, im, originX + ix, originY + iy, iw, ih, imgCorner)
+        drawImageCover(ctx, im, px, py, iw, ih, imgCorner)
+      } else {
+        ctx.save()
+        ctx.globalAlpha = 0.2
+        ctx.fillStyle = d.theme.rule
+        ctx.beginPath()
+        roundRect(ctx, px, py, iw, ih, imgCorner)
+        ctx.fill()
+        ctx.restore()
       }
     }
 

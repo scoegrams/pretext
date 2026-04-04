@@ -1138,7 +1138,9 @@
                 <input type="checkbox" id="masonry-enabled" />
                 Card grid preview
               </label>
-              <p class="field-hint">Blank lines in <strong>Sample text</strong> separate cards. Pretext measures height without DOM reflow. Exclusive with Editorial above.</p>
+              <p class="field-hint">
+                Slices <strong>Sample text</strong> into cards (see <strong>Card split</strong> below). Pretext measures height without DOM reflow. Exclusive with Editorial above.
+              </p>
             </div>
             <fieldset id="masonry-controls" class="masonry-controls-fieldset" disabled>
               <div class="field masonry-cols-field">
@@ -1173,38 +1175,53 @@
                   <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="10" aria-pressed="false">10</button>
                   <button type="button" class="masonry-cols-btn masonry-rows-btn" data-rows="12" aria-pressed="false">12</button>
                 </div>
-                <p class="field-hint">Cards = cols × rows. Uses your Sample text paragraphs, cycling if needed.</p>
+                <p class="field-hint">Cards = cols × rows. Fills the grid from your split sequence; cycles if there are fewer pieces than slots.</p>
+              </div>
+              <div class="field">
+                <label class="slider-label" for="masonry-card-split">Card split</label>
+                <select id="masonry-card-split" aria-label="How sample text is divided into masonry cards">
+                  <option value="paragraphs">Paragraphs (blank line between cards)</option>
+                  <option value="lines">Lines (one line = next card)</option>
+                  <option value="sentences">Sentences (whole story, one sentence per card)</option>
+                </select>
+                <p class="field-hint">
+                  <strong>Paragraphs</strong> — default; double newlines break cards.
+                  <strong>Lines</strong> — put each beat on its own line to read top-to-bottom across the grid.
+                  <strong>Sentences</strong> — walks the full sample in order (uses <code>Intl.Segmenter</code> when the browser supports it).
+                </p>
               </div>
               <div class="field masonry-card-images-field">
-                <label class="slider-label" for="masonry-card-image-mode">Card images</label>
-                <select id="masonry-card-image-mode" aria-label="How images sit inside each card">
-                  <option value="none">Off</option>
-                  <option value="top">Photo on top (full width)</option>
-                  <option value="left">Thumbnail left</option>
-                  <option value="right">Thumbnail right</option>
+                <label class="slider-label" for="masonry-card-image-mode">Photos in cards</label>
+                <select id="masonry-card-image-mode" aria-label="Photo placement inside each card">
+                  <option value="none">No photos</option>
+                  <option value="top">Band on top (full width)</option>
+                  <option value="left">Thumbnail column · left</option>
+                  <option value="right">Thumbnail column · right</option>
                 </select>
-                <label class="slider-label" for="masonry-card-image-urls">Image URLs (one per line)</label>
+                <label class="slider-label" for="masonry-card-image-urls">URL list (one line per card)</label>
                 <textarea
                   id="masonry-card-image-urls"
                   rows="4"
-                  placeholder="Line 1 → first card&#10;Line 2 → second card&#10;https://… or data:image/…"
+                  placeholder="First line → first card, second line → second card…&#10;https://…  or  data:image/png;base64,…"
                   autocomplete="off"
                   spellcheck="false"
-                  aria-label="One image URL per masonry card line"
+                  aria-label="Image URL per card, one per line in card order"
                 ></textarea>
                 <label class="slider-label" for="masonry-card-image-size"
-                  >Image size <span class="slider-val" id="masonry-card-image-size-val">120</span>px</label
+                  ><span id="masonry-card-image-size-label">Photo band height</span>
+                  <span class="slider-val" id="masonry-card-image-size-val">120</span> px</label
                 >
                 <input
                   type="range"
                   id="masonry-card-image-size"
-                  min="48"
+                  min="56"
                   max="280"
                   step="4"
-                  aria-label="Max image height or thumbnail width"
+                  aria-label="Photo band height or thumbnail width"
                 />
+                <p class="field-hint" id="masonry-card-image-size-hint"></p>
                 <p class="field-hint">
-                  Line <em>i</em> pairs with card <em>i</em> (same order as your sample paragraphs / tiling). Fewer lines than cards = no image on extra cards. Same-origin, CORS-enabled hosts, or data URIs draw on canvas.
+                  Same order as sample paragraphs (and tiling). Empty line = no photo on that card. Canvas needs same-origin, CORS, or a data URI.
                 </p>
               </div>
               <div class="field-row">

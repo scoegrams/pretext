@@ -140,6 +140,7 @@ const els = {
   masonryColsGrid: byId<HTMLElement>('masonry-cols-grid'),
   masonryRowsGrid: byId<HTMLElement>('masonry-rows-grid'),
   masonryGridHint: byId<HTMLElement>('masonry-grid-hint'),
+  masonryCardSplit: byId<HTMLSelectElement>('masonry-card-split'),
   btnMasonryFullWidth: byId<HTMLButtonElement>('btn-masonry-full-width'),
   masonryCardImageMode: byId<HTMLSelectElement>('masonry-card-image-mode'),
   masonryCardImageUrls: byId<HTMLTextAreaElement>('masonry-card-image-urls'),
@@ -503,6 +504,11 @@ function readFormIntoDesign(): StudioDesignV1 {
   d.masonry.maxWideColumns = cols
   d.masonry.tileCount = d.masonry.rows > 1 ? d.masonry.rows * cols : 0
   d.masonry.singleColumnBreakpoint = 520
+  const splitRaw = els.masonryCardSplit.value
+  d.masonry.cardSplit =
+    splitRaw === 'paragraphs' || splitRaw === 'lines' || splitRaw === 'sentences'
+      ? splitRaw
+      : 'paragraphs'
   const modeRaw = els.masonryCardImageMode.value
   d.masonry.cardImageMode =
     modeRaw === 'top' || modeRaw === 'left' || modeRaw === 'right' || modeRaw === 'none'
@@ -511,7 +517,7 @@ function readFormIntoDesign(): StudioDesignV1 {
   d.masonry.cardImageUrls = els.masonryCardImageUrls.value
   d.masonry.cardImageSizePx = clampInt(
     Number.parseInt(els.masonryCardImageSize.value, 10),
-    48,
+    56,
     280,
     120,
   )
@@ -627,9 +633,10 @@ function writeFormFromDesign(d: StudioDesignV1): void {
   els.masonryCardPad.value = String(clampInt(mas.cardPadding, 4, 48, 16))
   els.masonryMaxCol.value = String(clampInt(mas.maxColWidth, 120, 800, 400))
   els.masonryMaxChars.value = String(clampInt(mas.maxCharsPerBlock, 0, 20000, 0))
+  els.masonryCardSplit.value = mas.cardSplit
   els.masonryCardImageMode.value = mas.cardImageMode
   els.masonryCardImageUrls.value = mas.cardImageUrls
-  els.masonryCardImageSize.value = String(clampInt(mas.cardImageSizePx, 48, 280, 120))
+  els.masonryCardImageSize.value = String(clampInt(mas.cardImageSizePx, 56, 280, 120))
 
   rebuildEditObjectRows(ed.objects)
   syncEditControlsDisabled()
@@ -694,9 +701,27 @@ function syncSliderValueLabels(): void {
 }
 
 function syncMasonryCardImageControls(): void {
-  const on = els.masonryCardImageMode.value !== 'none'
+  const mode = els.masonryCardImageMode.value
+  const on = mode !== 'none'
   els.masonryCardImageUrls.disabled = !on
   els.masonryCardImageSize.disabled = !on
+  const lab = document.getElementById('masonry-card-image-size-label')
+  if (lab) {
+    lab.textContent =
+      mode === 'top'
+        ? 'Photo band height'
+        : mode === 'left' || mode === 'right'
+          ? 'Thumbnail width'
+          : 'Photo size'
+  }
+  const hint = document.getElementById('masonry-card-image-size-hint')
+  if (hint) {
+    hint.textContent = on
+      ? mode === 'top'
+        ? 'Fixed-height strip; photo is cover-cropped. Layout reserves this band while images load (shaded until decoded).'
+        : 'Slider sets column width; height follows aspect ratio (capped), cover-cropped. Light fill shows the slot while loading.'
+      : 'Choose a layout to enable URLs. The slider sets band height (top) or thumb width (sides).'
+  }
 }
 
 function readActiveMasonryCols(): number {

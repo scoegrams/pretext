@@ -97,7 +97,10 @@ export const MASONRY_WIDE_COLUMN_PRESETS = [2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24
 /** How each card shows its optional product image (URL from `cardImageUrls`). */
 export type StudioMasonryCardImageModeV1 = 'none' | 'top' | 'left' | 'right'
 
-/** Masonry card grid: each blank-line-separated paragraph in `sampleText` is one card; heights from `prepare` + `layout` (no DOM). */
+/** How `sampleText` is sliced into masonry cards (reading order; tiling still cycles if rows × cols > count). */
+export type StudioMasonryCardSplitV1 = 'paragraphs' | 'lines' | 'sentences'
+
+/** Masonry card grid: `sampleText` is split per `cardSplit`; heights from `prepare` + `layout` (no DOM). */
 export type StudioMasonryV1 = {
   enabled: boolean
   /** Space between cards (px). */
@@ -118,6 +121,8 @@ export type StudioMasonryV1 = {
   tileCount: number
   /** Number of rows shown in the masonry preview (studio UI). Multiplied by `minWideColumns` to get the effective tile count. 1 = no tiling. */
   rows: number
+  /** Split `sampleText` into cards: paragraphs (blank lines), lines (one row per card), or sentences (reading order). */
+  cardSplit: StudioMasonryCardSplitV1
   /** One image URL per line; line *i* matches card *i* (after tiling). Empty lines = no image for that slot. */
   cardImageUrls: string
   /** Layout of the photo inside each card that has a URL. */
@@ -209,6 +214,7 @@ export function defaultMasonry(): StudioMasonryV1 {
     maxWideColumns: 6,
     tileCount: 0,
     rows: 1,
+    cardSplit: 'paragraphs',
     cardImageUrls: '',
     cardImageMode: 'none',
     cardImageSizePx: 120,
@@ -427,6 +433,11 @@ export function parseStudioDesign(raw: unknown): StudioDesignV1 | null {
         const raw = Number(m['rows'])
         return Number.isFinite(raw) && raw >= 1 ? Math.min(24, Math.max(1, Math.floor(raw))) : dm.rows
       })(),
+      cardSplit: ((): StudioMasonryCardSplitV1 => {
+        const v = m['cardSplit']
+        if (v === 'paragraphs' || v === 'lines' || v === 'sentences') return v
+        return dm.cardSplit
+      })(),
       cardImageUrls: (() => {
         if (typeof m['cardImageUrls'] === 'string') return m['cardImageUrls']
         const legacyUrl = typeof m['imageUrl'] === 'string' ? m['imageUrl'].trim() : ''
@@ -442,10 +453,10 @@ export function parseStudioDesign(raw: unknown): StudioDesignV1 | null {
       })(),
       cardImageSizePx: (() => {
         const raw = Number(m['cardImageSizePx'])
-        if (Number.isFinite(raw)) return Math.min(280, Math.max(48, Math.round(raw)))
+        if (Number.isFinite(raw)) return Math.min(280, Math.max(56, Math.round(raw)))
         const frac = Number(m['imageWidthFrac'])
         if (Number.isFinite(frac))
-          return Math.min(280, Math.max(48, Math.round(60 + frac * 400)))
+          return Math.min(280, Math.max(56, Math.round(60 + frac * 400)))
         return dm.cardImageSizePx
       })(),
     }
