@@ -7,6 +7,7 @@ const entrypoints = [
   'pages/demos/index.html',
   'pages/demos/accordion.html',
   'pages/demos/bubbles.html',
+  'pages/demos/coffee-shop.html',
   'pages/demos/dynamic-layout.html',
   'pages/demos/editorial-engine.html',
   'pages/demos/justification-comparison.html',
@@ -33,6 +34,7 @@ if (result.exitCode !== 0) {
 const targets = [
   { source: 'index.html', target: 'index.html' },
   { source: 'accordion.html', target: 'accordion/index.html' },
+  { source: 'coffee-shop.html', target: 'coffee-shop/index.html' },
   { source: 'bubbles.html', target: 'bubbles/index.html' },
   { source: 'dynamic-layout.html', target: 'dynamic-layout/index.html' },
   { source: 'editorial-engine.html', target: 'editorial-engine/index.html' },
